@@ -5,6 +5,7 @@
 #include <string.h>
 #include <vector>
 #include <list>
+#include <forward_list>
 #include <expected>
 #include <ranges>
 #include <charconv>
@@ -54,7 +55,7 @@ struct Node
 
 struct Connection
 {
-    Node &from; // all nodes are created before connections, so memory are not moving, -> refs are ok
+    Node &from;
     Node &to;
     int lenght;
 
@@ -81,59 +82,25 @@ private:
     std::unique_ptr<char[]> buffer; // make a copy of graph content, not to alloc each node name
     long node_id_seq{0};
     bool needs_reset{false};
-    std::vector<Node> nodes;
-    std::vector<Connection> connections;
+    std::forward_list<Node> nodes; //forward list does not invalidate references and iterators
+    std::forward_list<Connection> connections;
 
-    std::optional<std::reference_wrapper<Node>> find_node(std::string_view name)
+    std::optional<std::reference_wrapper<Node>> find_node(const std::string_view &name)
     {
         auto &&iter = std::ranges::find_if(nodes, [&](const Node &node)
                                            { return node.name.compare(name) == 0; });
 
-        if (iter == nodes.end()) return std::nullopt;
+        if (iter == nodes.end())
+            return std::nullopt;
         return *iter;
     }
 
-    void create_node(std::string_view name)
+    Node &find_create_node(std::string_view name)
     {
         auto &&iter = std::ranges::find_if(nodes, [&](const Node &node)
                                            { return node.name.compare(name) == 0; });
 
-        if (iter != nodes.end())
-            return;
-
-        nodes.emplace_back(name, ++node_id_seq);
-    }
-
-    void parse_nodes(const std::string_view &line)
-    {
-        std::string_view name1;
-        std::string_view name2;
-
-        auto tokenizer{StringTokenizer(line, ':')};
-
-        auto i{0};
-        while (tokenizer.has_next() && i != 2)
-        {
-            auto data = tokenizer.next();
-            switch (i)
-            {
-            case 0:
-                name1 = data;
-                break;
-            case 1:
-                name2 = data;
-                break;
-            default:
-                break;
-            }
-            ++i;
-        }
-
-        if (i != 2)
-            return;
-
-        create_node(name1);
-        create_node(name2);
+        return (iter == nodes.end()) ? nodes.emplace_front(name, ++node_id_seq) : *iter;
     }
 
     std::optional<graph_error> parse_line(std::string_view line)
@@ -174,16 +141,8 @@ private:
 
         if (i != 3)
             return std::nullopt;
-
-        auto node1_opt = find_node(name1);
-        auto node2_opt = find_node(name2);
-        if (!node1_opt.has_value() || !node2_opt.has_value())
-            return graph_error::node_not_found;
-
-        auto &node1 = node1_opt.value().get();
-        auto &node2 = node2_opt.value().get();
-
-        connections.emplace_back(node1, node2, length);
+ 
+        connections.emplace_front(find_create_node(name1), find_create_node(name2), length);
 
         return std::nullopt;
     }
@@ -297,19 +256,9 @@ public:
             if (line.empty())
                 continue;
 
-            graph.parse_nodes(line);
+            graph.parse_line(line);
         }
-        tokenizer.reset();
-        while (tokenizer.has_next())
-        {
-            auto line = tokenizer.next();
-            if (line.empty())
-                continue;
-
-            auto error = graph.parse_line(line);
-            if (error.has_value())
-                return std::unexpected(error.value());
-        }
+ 
 
         for (auto &node : graph.nodes)
         {
@@ -317,7 +266,7 @@ public:
                                                                     { return conn.from.id == node.id || conn.to.id == node.id; });
 
             for (auto &conn : nodeConns)
-                node.connections.emplace_back(std::ref(conn));
+                node.connections.emplace_back(conn);
         }
 
         return graph;
