@@ -75,7 +75,7 @@ class Graph
 public:
     Graph(std::string_view content)
     {
-        this->buffer = std::make_unique<char[]>(content.length() + 1); // string_view are not null terminated, strncpy makes null terminated string
+        this->buffer = std::make_unique<char[]>(content.length() + 2); // string_view are not null terminated, strncpy makes null terminated string
         strncpy(buffer.get(), content.data(), content.length());
     }
 
