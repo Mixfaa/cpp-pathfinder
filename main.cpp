@@ -4,15 +4,12 @@
 #include <memory>
 #include <string.h>
 #include <vector>
-#include <stack>
 #include <list>
 #include <expected>
 #include <ranges>
 #include <charconv>
 #include <algorithm>
 #include "string_tokenizer.hpp"
-
-namespace ranges = std::ranges;
 
 enum class graph_error
 {
@@ -76,9 +73,16 @@ void print_path(const std::vector<std::reference_wrapper<Connection>> &path);
 class Graph
 {
 public:
+    Graph(std::string_view content)
+    {
+        this->buffer = std::make_unique<char[]>(content.length() + 1); // string_view are not null terminated, strncpy makes null terminated string
+        strncpy(buffer.get(), content.data(), content.length());
+    }
+
 private:
+    std::unique_ptr<char[]> buffer; // make a copy of graph content, not to alloc each node name
     long node_id_seq{0};
-    bool needsReset{false};
+    bool needs_reset{false};
     std::vector<Node> nodes;
     std::vector<Connection> connections;
 
@@ -212,12 +216,15 @@ private:
             if (!opposite_node.visited)
                 unvisited.push_front(opposite_node);
 
-            auto lenghtTo = from_node.weight + conn.lenght;
+            const auto lenghtTo = from_node.weight + conn.lenght;
 
-            if (lenghtTo < opposite_node.weight)
+            if (lenghtTo <= opposite_node.weight)
             {
-                opposite_node.weight = lenghtTo;
-                opposite_node.clear_paths();
+                if (lenghtTo < opposite_node.weight)
+                {
+                    opposite_node.weight = lenghtTo;
+                    opposite_node.clear_paths();
+                }
 
                 for (const auto &route : from_node.paths)
                 {
@@ -258,12 +265,19 @@ public:
         auto &from_node = from_node_opt.value().get();
         auto &to_node = to_node_opt.value().get();
 
+        if (needs_reset) {
+            reset();
+            needs_reset = false;
+        }
+
         from_node.visited = true;
         from_node.weight = 0;
 
         from_node.paths.emplace_back();
 
         process_node(from_node);
+
+        needs_reset = true;
 
         return to_node.paths;
     }
@@ -274,10 +288,10 @@ public:
             print_node(node);
     }
 
-    static std::expected<Graph, graph_error> parseGraph(std::string_view content)
+    static std::expected<Graph, graph_error> parse_graph(std::string_view raw_content)
     {
-        Graph graph;
-        auto tokenizer{StringTokenizer(content, '\n')};
+        Graph graph(raw_content);
+        auto tokenizer{StringTokenizer(graph.buffer.get(), '\n')};
 
         while (tokenizer.has_next())
         {
@@ -334,7 +348,8 @@ int main(int, char **)
 
     fileStream.read(buffer.get(), BUFFER_SIZE);
 
-    auto graph_or_err = Graph::parseGraph(buffer.get());
+    auto graph_or_err = Graph::parse_graph(buffer.get());
+
     if (!graph_or_err.has_value())
     {
         std::cout << "Graph parsing error\n";
