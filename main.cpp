@@ -62,9 +62,7 @@ struct Connection
 
     Node &opposite(Node &node) const
     {
-        if (node == from)
-            return to;
-        return from;
+        return node == from ? to : from;
     }
 };
 
@@ -91,8 +89,7 @@ private:
         auto &&iter = std::ranges::find_if(nodes, [&](const Node &node)
                                            { return node.name.compare(name) == 0; });
 
-        if (iter == nodes.end())
-            return std::nullopt;
+        if (iter == nodes.end()) return std::nullopt;
         return *iter;
     }
 
@@ -265,7 +262,8 @@ public:
         auto &from_node = from_node_opt.value().get();
         auto &to_node = to_node_opt.value().get();
 
-        if (needs_reset) {
+        if (needs_reset)
+        {
             reset();
             needs_reset = false;
         }
