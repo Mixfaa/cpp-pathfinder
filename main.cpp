@@ -67,6 +67,26 @@ struct Connection
     }
 };
 
+bool are_routes_same(const std::vector<std::reference_wrapper<Connection>>& route1,
+                     const std::vector<std::reference_wrapper<Connection>>& route2)
+{
+    if (std::addressof(route1) == std::addressof(route2))
+        return true;
+    if (route1.size() != route2.size())
+        return false;
+
+    for (size_t i = 0; i < route1.size(); i++)
+    {
+        const auto &connection1 = route1[i].get();
+        const auto &connection2 = route2[i].get();
+
+        if (std::addressof(connection1) != std::addressof(connection2))
+            return false;
+    }
+
+    return true;
+}
+
 void print_path(const std::vector<std::reference_wrapper<Connection>> &path);
 
 class Graph
@@ -77,12 +97,11 @@ public:
         this->buffer = std::make_unique<char[]>(content.length() + 2); // string_view are not null terminated, strncpy makes null terminated string
         strncpy(buffer.get(), content.data(), content.length());
     }
-
 private:
     std::unique_ptr<char[]> buffer; // make a copy of graph content, not to alloc each node name
     long node_id_seq{0};
     bool needs_reset{false};
-    std::forward_list<Node> nodes; //forward list does not invalidate references and iterators
+    std::forward_list<Node> nodes; // forward list does not invalidate references and iterators
     std::forward_list<Connection> connections;
 
     std::optional<std::reference_wrapper<Node>> find_node(const std::string_view &name)
@@ -141,7 +160,7 @@ private:
 
         if (i != 3)
             return std::nullopt;
- 
+
         connections.emplace_front(find_create_node(name1), find_create_node(name2), length);
 
         return std::nullopt;
@@ -236,7 +255,13 @@ public:
 
         needs_reset = true;
 
-        return to_node.paths;
+        auto &paths = to_node.paths;
+
+        paths.erase(
+            std::unique(paths.begin(), paths.end(), are_routes_same), paths.end()
+        );
+
+        return std::move(paths);
     }
 
     void print_graph()
@@ -258,7 +283,6 @@ public:
 
             graph.parse_line(line);
         }
- 
 
         for (auto &node : graph.nodes)
         {
@@ -320,6 +344,7 @@ int main(int, char **)
         {
             print_path(i);
         }
+
     }
 
     return 0;
