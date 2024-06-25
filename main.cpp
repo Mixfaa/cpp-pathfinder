@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <memory>
 #include <string.h>
 #include <vector>
@@ -21,6 +22,7 @@ enum class graph_error
 struct Connection;
 struct Node;
 
+void print_path(const std::vector<std::reference_wrapper<Connection>> &path);
 struct Node
 {
     std::string_view name;
@@ -67,8 +69,8 @@ struct Connection
     }
 };
 
-bool are_routes_same(const std::vector<std::reference_wrapper<Connection>>& route1,
-                     const std::vector<std::reference_wrapper<Connection>>& route2)
+bool are_routes_same(const std::vector<std::reference_wrapper<Connection>> &route1,
+                     const std::vector<std::reference_wrapper<Connection>> &route2)
 {
     if (std::addressof(route1) == std::addressof(route2))
         return true;
@@ -87,6 +89,31 @@ bool are_routes_same(const std::vector<std::reference_wrapper<Connection>>& rout
     return true;
 }
 
+bool paths_have_route(
+    const std::vector<std::vector<std::reference_wrapper<Connection>>> &paths,
+    const std::vector<std::reference_wrapper<Connection>> &this_route,
+    const Connection &route_tail)
+{
+    for (auto &route : paths)
+    {
+        if (route.size() != (this_route.size() + 1))
+            continue;
+
+        for (size_t i = 0; i < this_route.size(); i++)
+        {
+            const auto &connection1 = this_route[i].get();
+            const auto &connection2 = route[i].get();
+            if (std::addressof(connection1) != std::addressof(connection2))
+                break;
+        }
+
+        if (std::addressof(route.back().get()) == std::addressof(route_tail))
+            return true;
+    }
+
+    return false;
+}
+
 void print_path(const std::vector<std::reference_wrapper<Connection>> &path);
 
 class Graph
@@ -97,6 +124,7 @@ public:
         this->buffer = std::make_unique<char[]>(content.length() + 2); // string_view are not null terminated, strncpy makes null terminated string
         strncpy(buffer.get(), content.data(), content.length());
     }
+
 private:
     std::unique_ptr<char[]> buffer; // make a copy of graph content, not to alloc each node name
     long node_id_seq{0};
@@ -203,10 +231,13 @@ private:
 
                 for (const auto &route : from_node.paths)
                 {
-                    auto new_route = std::vector(route);
-                    new_route.emplace_back(conn);
+                    if (!paths_have_route(opposite_node.paths, route, conn))
+                    {
+                        auto new_route = std::vector(route);
+                        new_route.emplace_back(conn);
 
-                    opposite_node.paths.emplace_back(std::move(new_route));
+                        opposite_node.paths.emplace_back(std::move(new_route));
+                    }
                 }
             }
         }
@@ -257,9 +288,8 @@ public:
 
         auto &paths = to_node.paths;
 
-        paths.erase(
-            std::unique(paths.begin(), paths.end(), are_routes_same), paths.end()
-        );
+        // paths.erase(
+        //     std::unique(paths.begin(), paths.end(), are_routes_same), paths.end());
 
         return std::move(paths);
     }
@@ -344,7 +374,6 @@ int main(int, char **)
         {
             print_path(i);
         }
-
     }
 
     return 0;
