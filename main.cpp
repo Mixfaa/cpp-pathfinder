@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <memory>
 #include <string.h>
 #include <vector>
@@ -22,7 +21,6 @@ enum class graph_error
 struct Connection;
 struct Node;
 
-void print_path(const std::vector<std::reference_wrapper<Connection>> &path);
 struct Node
 {
     std::string_view name;
@@ -135,7 +133,7 @@ private:
     std::optional<std::reference_wrapper<Node>> find_node(const std::string_view &name)
     {
         auto &&iter = std::ranges::find_if(nodes, [&](const Node &node)
-                                           { return node.name.compare(name) == 0; });
+                                           { return node.name == name; });
 
         if (iter == nodes.end())
             return std::nullopt;
@@ -145,7 +143,7 @@ private:
     Node &find_create_node(std::string_view name)
     {
         auto &&iter = std::ranges::find_if(nodes, [&](const Node &node)
-                                           { return node.name.compare(name) == 0; });
+                                           { return node.name == name; });
 
         return (iter == nodes.end()) ? nodes.emplace_front(name, ++node_id_seq) : *iter;
     }
@@ -286,12 +284,10 @@ public:
 
         needs_reset = true;
 
-        auto &paths = to_node.paths;
-
         // paths.erase(
         //     std::unique(paths.begin(), paths.end(), are_routes_same), paths.end());
 
-        return std::move(paths);
+        return to_node.paths;
     }
 
     void print_graph()
