@@ -1,15 +1,14 @@
-#include <stdio.h>
+#include <optional>
 #include <iostream>
 #include <fstream>
 #include <memory>
-#include <string.h>
 #include <vector>
 #include <list>
+#include <string.h>
 #include <forward_list>
 #include <expected>
-#include <ranges>
 #include <charconv>
-#include <algorithm>
+#include <ranges>
 #include "string_tokenizer.hpp"
 
 enum class graph_error
@@ -283,9 +282,6 @@ public:
         process_node(from_node);
 
         needs_reset = true;
-
-        // paths.erase(
-        //     std::unique(paths.begin(), paths.end(), are_routes_same), paths.end());
 
         return to_node.paths;
     }

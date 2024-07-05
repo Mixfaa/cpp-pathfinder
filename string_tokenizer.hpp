@@ -1,12 +1,13 @@
-#include <string>
 #include <string_view>
 
 class StringTokenizer
 {
 private:
+    using size_type = std::string_view::size_type;
+
     std::string_view m_string;
-    size_t m_index = 0;
-    size_t m_next = 0;
+    size_type m_index = 0;
+    size_type m_next = 0;
     char m_delimiter = '\n';
 
 public:
@@ -24,7 +25,7 @@ public:
 
     bool has_next()
     {
-        for (size_t i = m_index; i <= m_string.length(); i++)
+        for (size_type i = m_index; i <= m_string.length(); i++)
         {
             if (m_string[i] == m_delimiter)
             {

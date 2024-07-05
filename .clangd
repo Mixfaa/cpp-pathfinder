@@ -1,0 +1,4 @@
+CompileFlags:
+    Remove: -f*
+    Add: [-std=gnu++23, -std=c++23, -D__cpp_concepts=202002L]
+    Compiler: g++
